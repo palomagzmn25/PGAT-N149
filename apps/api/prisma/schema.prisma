@@ -1,0 +1,104 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  CAPTURISTA
+  REVISOR
+}
+
+enum DocumentStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum OcrStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  role      Role     @default(CAPTURISTA)
+  name      String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  documents GeneratedDocument[]
+  ocrJobs   OcrJob[]
+  auditLogs AuditLog[]
+  templates Template[]
+}
+
+model Template {
+  id           String        @id @default(cuid())
+  name         String
+  type         String
+  description  String?
+  filePath     String
+  version      Int           @default(1)
+  placeholders Json          @default("[]")
+  isActive     Boolean       @default(true)
+  createdById  String
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  createdBy User                @relation(fields: [createdById], references: [id])
+  documents GeneratedDocument[]
+}
+
+model GeneratedDocument {
+  id             String         @id @default(cuid())
+  templateId     String
+  userId         String
+  instrumentType String
+  formData       Json
+  outputPath     String?
+  status         DocumentStatus @default(PENDING)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  template Template @relation(fields: [templateId], references: [id])
+  user     User     @relation(fields: [userId], references: [id])
+}
+
+model OcrJob {
+  id          String    @id @default(cuid())
+  userId      String
+  inputPath   String
+  outputPath  String?
+  status      OcrStatus @default(PENDING)
+  rawText     String?   @db.Text
+  errorReport String?   @db.Text
+  provider    String?
+  pageCount   Int?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String
+  action     String
+  resource   String
+  resourceId String?
+  ip         String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
